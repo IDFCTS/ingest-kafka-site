@@ -5,7 +5,12 @@ DOCKER_IMAGE := $(HUGO_BASE_IMAGE)
 #PROD_IMAGE := hvishwanath/kafka-site-md:1.2.0
 PROD_IMAGE := us-west1-docker.pkg.dev/play-394201/kafka-site-md/kafka-site-md:1.6.0
 
-.PHONY: build serve clean docker-image hugo-base-multi-platform prod-image prod-run buildx-setup ghcr-prod-image
+.PHONY: build serve clean docker-image hugo-base-multi-platform prod-image prod-run buildx-setup ghcr-prod-image release
+
+KAFKA_VERSION := $(shell grep 'latest_version_number:' hugo.yaml | awk '{print $$2}' | tr -d '"')
+TAR_FILE := kafka-site-md-$(KAFKA_VERSION).tar
+
+# Hugo configuration
 
 # Setup buildx for multi-arch builds
 buildx-setup:
@@ -77,6 +82,15 @@ ghcr-prod-image: build buildx-setup
 		--file Dockerfile.prod \
 		--push \
 		.
+
+# Save production image as tar and create a GitHub Release
+release: prod-image
+	@echo "Saving image to $(TAR_FILE) for Kafka version $(KAFKA_VERSION)..."
+	docker save -o $(TAR_FILE) $(PROD_IMAGE)
+	@echo "Creating GitHub Release v$(KAFKA_VERSION)..."
+	gh release create v$(KAFKA_VERSION) $(TAR_FILE) --title "Release v$(KAFKA_VERSION)" --notes "Docker image for air-gapped deployment of Kafka Documentation v$(KAFKA_VERSION)"
+	@echo "Cleaning up $(TAR_FILE)..."
+	rm $(TAR_FILE)
 
 # Clean the output directory and remove Docker images
 clean:
