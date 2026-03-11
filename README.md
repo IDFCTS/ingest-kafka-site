@@ -334,6 +334,30 @@ author: "Author Name (@github_handle)"
    ```
    This creates a multi-architecture Nginx image (ARM64 and AMD64) optimized for production.
 
+### Air-Gapped Environment Deployment
+
+If you are deploying the Kafka documentation site to an environment with **no internet access** (air-gapped), the site is designed to function entirely offline.
+
+To ensure the site renders correctly in an air-gapped network, **all external dependencies have been localized**:
+1. **Offline Search:** The site uses Docsy's client-side Lunr.js offline search logic (`offlineSearch: true` in `hugo.yaml`). The search index (`offline-search-index.json`) is built into the Docker image itself. When a user first opens the site, their browser downloads this JSON file *directly from your local Nginx container* over your air-gapped network, completely bypassing the need for public internet access or external search backends.
+2. **Local Fonts:** Google Fonts (Open Sans) have been downloaded into `static/fonts/open-sans/` and are loaded locally via `/fonts/open-sans/open-sans.css`. This prevents the browser from timing out while attempting to reach `fonts.googleapis.com` or `fonts.gstatic.com`.
+3. **Local Javascript Libraries:** The Docsy theme normally loads jQuery and Lunr.js from external CDNs (`code.jquery.com` and `unpkg.com`). These have been downloaded into `static/js/vendor/` and the theme's `head.html` partial has been overridden in `layouts/partials/head.html` to load them locally.
+
+**Build Instructions:**
+You can build the air-gapped container the same way as the standard production container:
+```bash
+make prod-image
+```
+Then, save the image into a tarball to transfer to your air-gapped network:
+```bash
+docker save us-west1-docker.pkg.dev/play-394201/kafka-site-md/kafka-site-md:1.6.0 > kafka-site-md-airgap.tar
+```
+Once transferred, load and run it:
+```bash
+docker load < kafka-site-md-airgap.tar
+docker run -d -p 8080:80 us-west1-docker.pkg.dev/play-394201/kafka-site-md/kafka-site-md:1.6.0
+```
+
 ### Cleaning Up
 
 Remove built files and Docker images:

@@ -46,4 +46,5 @@ postcss.config.js
 # Hugo's temp directories
 .hugo_build.lock
 .cache/
+_vendor/
 tmp/ 
