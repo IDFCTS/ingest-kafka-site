@@ -1,0 +1,57 @@
+name: Build and Release Docker Image
+
+on:
+  push:
+    branches:
+      - dist/air-gapped
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          version="$(grep -E '^[[:space:]]*latest_version_number:' hugo.yaml | head -n1 | sed -E 's/.*:[[:space:]]*"?([^"#[:space:]]+)"?.*/\1/')"
+          if [ -z "$version" ]; then
+            echo "Unable to extract latest_version_number from hugo.yaml" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build site output
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD":/src hvishwanath/hugo:v0.123.7-ext-multiplatform \
+            --minify \
+            --destination output
+
+      - name: Build Docker image
+        shell: bash
+        run: docker build -f Dockerfile.prod -t kafka-site-md:v${{ steps.version.outputs.version }} .
+
+      - name: Save Docker image
+        shell: bash
+        run: |
+          docker save kafka-site-md:v${{ steps.version.outputs.version }} -o kafka-site-md-v${{ steps.version.outputs.version }}.tar
+
+      - name: Create GitHub Release and upload asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            TAG="${TAG}-$(date +%s)"
+          fi
+          gh release create "$TAG" "kafka-site-md-v${{ steps.version.outputs.version }}.tar" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Release ${TAG}" \
+            --notes "Kafka documentation offline image for version ${TAG}"
