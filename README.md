@@ -343,20 +343,75 @@ To ensure the site renders correctly in an air-gapped network, **all external de
 2. **Local Fonts:** Google Fonts (Open Sans) have been downloaded into `static/fonts/open-sans/` and are loaded locally via `/fonts/open-sans/open-sans.css`. This prevents the browser from timing out while attempting to reach `fonts.googleapis.com` or `fonts.gstatic.com`.
 3. **Local Javascript Libraries:** The Docsy theme normally loads jQuery and Lunr.js from external CDNs (`code.jquery.com` and `unpkg.com`). These have been downloaded into `static/js/vendor/` and the theme's `head.html` partial has been overridden in `layouts/partials/head.html` to load them locally.
 
-**Build Instructions:**
-You can build the air-gapped container the same way as the standard production container:
+**Build Instructions (CI/CD - Recommended):**
+
+This repository now includes an automated workflow at `.github/workflows/air-gapped-release.yml`.
+
+1. Push your changes to the `dist/air-gapped` branch.
+2. The workflow will:
+  - Build the static site output.
+  - Build the production Docker image from `Dockerfile.prod`.
+  - Save the image as `kafka-site-md-v<version>.tar`.
+  - Create a GitHub Release using tag `v<latest_version_number>` from `hugo.yaml`.
+  - If the release tag already exists, append a Unix timestamp suffix.
+  - Upload the `.tar` archive as the release asset.
+3. Download the `.tar` file from the created GitHub Release and transfer it to your air-gapped environment.
+
+**Build Instructions (Local):**
+
+You can still build the air-gapped container locally using the same production path:
+
 ```bash
 make prod-image
 ```
-Then, save the image into a tarball to transfer to your air-gapped network:
+
+Then save the image into a tarball:
+
 ```bash
 docker save us-west1-docker.pkg.dev/play-394201/kafka-site-md/kafka-site-md:1.6.0 > kafka-site-md-airgap.tar
 ```
+
 Once transferred, load and run it:
+
 ```bash
 docker load < kafka-site-md-airgap.tar
 docker run -d -p 8080:80 us-west1-docker.pkg.dev/play-394201/kafka-site-md/kafka-site-md:1.6.0
 ```
+
+### Key Differences: main vs dist/air-gapped
+
+Use this as a quick guide for when to use each branch flow.
+
+| Area | main (standard flow) | dist/air-gapped (offline release flow) |
+| --- | --- | --- |
+| Primary purpose | Ongoing site development and normal website deployment | Produce transportable Docker image tarballs for offline environments |
+| Triggered automation | Standard site build/deploy pipeline | `.github/workflows/air-gapped-release.yml` on push |
+| Release artifact | No dedicated air-gapped tar release by default | `kafka-site-md-v<version>.tar` uploaded to GitHub Release |
+| Release tag source | Not used for air-gapped packaging | Uses `params.latest_version_number` from `hugo.yaml` |
+| Tag collision behavior | Not applicable for this flow | Appends Unix timestamp if `v<version>` already exists |
+| Typical consumer | Public/staging website updates | Teams deploying in isolated or restricted networks |
+
+Notes:
+- Local production image build (`make prod-image`) remains the same and can be used from either branch when needed.
+- The air-gapped branch flow is additive and focused on packaging/release automation.
+
+#### File-Level Differences for Air-Gapped Support
+
+Compared to the standard `main` flow, the `dist/air-gapped` flow relies on these key files:
+
+- `.github/workflows/air-gapped-release.yml`
+  - Automates build, tar export, and GitHub Release publishing for air-gapped artifacts.
+- `layouts/partials/head.html`
+  - Loads local JS assets instead of external CDN URLs.
+- `static/js/vendor/jquery-3.7.1.min.js`
+- `static/js/vendor/lunr.min.js`
+  - Vendor JS files served locally for offline functionality.
+- `static/fonts/open-sans/open-sans.css`
+- `static/fonts/open-sans/OpenSans-Regular.woff2`
+- `static/fonts/open-sans/OpenSans-Light.woff2`
+- `static/fonts/open-sans/OpenSans-SemiBold.woff2`
+- `static/fonts/open-sans/OpenSans-Bold.woff2`
+  - Local font assets to avoid runtime fetches from Google Fonts.
 
 ### Cleaning Up
 

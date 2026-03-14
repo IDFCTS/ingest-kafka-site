@@ -50,21 +50,13 @@ serve:
 		--buildDrafts \
 		--buildFuture
 
-# Build production Nginx image for multiple architectures
-# prod-image: build buildx-setup
-# 	docker buildx build \
-# 		--platform linux/amd64,linux/arm64 \
-# 		--tag $(PROD_IMAGE) \
-# 		--file Dockerfile.prod \
-# 		--push \
-# 		.
-
-# Build production Nginx image for multiple architectures
+Build production Nginx image for multiple architectures
 prod-image: build buildx-setup
 	docker buildx build \
+		--platform linux/amd64,linux/arm64 \
 		--tag $(PROD_IMAGE) \
 		--file Dockerfile.prod \
-		--load \
+		--push \
 		.
 
 # Run production image locally
