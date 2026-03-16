@@ -12,6 +12,7 @@ on:
 
 jobs:
   build-html:
+    if: github.ref_name != 'dist/air-gapped' && github.head_ref != 'dist/air-gapped'
     runs-on: ubuntu-latest
     
     steps:
@@ -42,6 +43,7 @@ jobs:
         retention-days: 7
 
   deploy:
+    if: github.ref_name != 'dist/air-gapped' && github.head_ref != 'dist/air-gapped'
     runs-on: ubuntu-latest
     needs: build-html
     steps:

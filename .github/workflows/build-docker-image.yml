@@ -14,6 +14,7 @@ env:
 
 jobs:
   build-and-push:
+    if: github.ref_name != 'dist/air-gapped' && github.head_ref != 'dist/air-gapped'
     runs-on: ubuntu-latest
     permissions:
       contents: read
